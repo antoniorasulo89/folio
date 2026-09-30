@@ -6,21 +6,28 @@ Porting Python dei downloader di [Leone25](https://github.com/Leone25).
 
 | Piattaforma | Login | Cosa serve |
 |---|---|---|
-| bSmart / digibook24 | email + password | selezionare il libro nella biblioteca |
+| bSmart | email + password o cookie | selezionare il libro nella biblioteca |
+| digibook24 | cookie del browser | accesso editore, poi cookie della sessione |
 | Sanoma | email + password | selezionare il libro nella biblioteca |
 | Zanichelli (BookTab + Kitaboo) | email + password | selezionare il libro nella biblioteca |
 | HUB Scuola (Young + Kids) | email + password | selezionare il libro nella biblioteca |
 | MyLim (Loescher) | email + password | selezionare il libro nella biblioteca |
 
-## Release pubblicate
+## Scarica Folio
 
-Le release esistenti usano ancora il nome ScaricaLibri. La nuova interfaccia Folio è nel codice locale; questi link puntano alle release già pubblicate.
+[Folio 3.1.0.dev1](https://github.com/antoniorasulo89/folio/releases/tag/v3.1.0-dev.1) è la versione con la nuova interfaccia e le correzioni dell’audit. I pacchetti contengono l’applicazione nativa: non serve installare Python.
 
-| Sistema | Download |
-|---|---|
-| 🪟 Windows | **[ScaricaLibri-Windows.exe](https://github.com/antoniorasulo89/bsmart-downloader-gui/releases/latest/download/ScaricaLibri-Windows.exe)** |
-| 🐧 Linux | **[ScaricaLibri-Linux](https://github.com/antoniorasulo89/bsmart-downloader-gui/releases/latest/download/ScaricaLibri-Linux)** (poi `chmod +x ScaricaLibri-Linux`) |
-| 🍎 macOS | **[ScaricaLibri-macOS](https://github.com/antoniorasulo89/bsmart-downloader-gui/releases/latest/download/ScaricaLibri-macOS)** |
+| Sistema | Download | Architettura |
+|---|---|---|
+| Windows | **[Folio-Windows.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.1/Folio-Windows.zip)** | x86_64 |
+| macOS | **[Folio-macOS.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.1/Folio-macOS.zip)** | Apple Silicon / ARM64 |
+| Linux | **[Folio-Linux.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.1/Folio-Linux.zip)** | x86_64 |
+
+Estrai tutto lo ZIP e apri `Folio.exe` su Windows, `Folio.app` su macOS o `Folio` su Linux. Su Linux, se necessario: `chmod +x Folio`.
+
+I pacchetti sono compilati con GitHub Actions e hanno superato 48 test offline e la prova di avvio della GUI su ciascun sistema. La build macOS è per Apple Silicon. Gli eseguibili di sviluppo non sono firmati; l’app macOS non è notarizzata.
+
+Questa versione precede gli esperimenti OCR: non include riconoscimento del testo, account salvati o libri scaricati.
 
 Apri **Account e accessi** per configurare ogni piattaforma, poi premi **Collega e carica biblioteca**.
 Il salvataggio è disattivato inizialmente: i dati restano solo in memoria.
@@ -49,10 +56,8 @@ python app_gui.py
 ## Creare l'eseguibile da soli
 
 - Windows: doppio click su `build_exe.bat`
-- Linux/macOS: `pip install -r requirements-build.txt` poi il comando `pyinstaller …`
-  riportato in `.github/workflows/build.yml`
-- In automatico: ogni tag `v*` pushato su GitHub compila i 3 sistemi e allega
-  i file alla release.
+- Linux/macOS: `pip install -r requirements-build.txt`, poi `python scripts/package_ci.py Linux` oppure `python scripts/package_ci.py macOS`. Su Linux serve un display virtuale per la prova GUI.
+- GitHub Actions: il workflow **Folio native packages** può essere avviato manualmente e compila i tre sistemi. Gli ZIP verificati sono disponibili negli artifact; la pubblicazione di una release è separata.
 
 ## Test
 
@@ -86,6 +91,6 @@ Le prossime build usano il nome **Folio** (`Folio-Windows.exe`, `Folio-Linux`, `
 - Annullamento e chiusura controllata; letture HTTP limitate, timeout, deadline di 15 minuti e tre tentativi per GET transitori. POST di accesso non ritentati automaticamente. La cancellazione durante una richiesta può attendere il timeout di rete.
 - Biblioteca verificata in background, ricerca con breve ritardo e massimo 100 risultati mostrati per ricerca. Un indice corrotto viene conservato in una copia prima della ricostruzione.
 - digibook24 usa il cookie dell’accesso editore nel browser; le sue password non vengono inviate al login bSmart.
-- Dipendenze con versioni fissate e build isolata. `requirements-build.txt` include gli strumenti di compilazione e controllo. La CI esegue test e prova del bundle prima dell’upload; le build Linux/macOS devono ancora essere eseguite sui rispettivi runner.
+- Dipendenze con versioni fissate e build isolata. `requirements-build.txt` include gli strumenti di compilazione e controllo. La CI esegue test e prova del bundle prima dell’upload; i pacchetti Windows, Linux e macOS sono stati compilati e verificati sui rispettivi runner.
 
-La nuova build è locale di sviluppo, non una release pubblicata.
+La versione 3.1.0.dev1 è pubblicata come prerelease: i download sono disponibili in cima a questa pagina.

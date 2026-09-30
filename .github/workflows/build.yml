@@ -2,9 +2,6 @@ name: Folio native packages
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'codex/folio-native-build-*'
 
 permissions:
   contents: read
