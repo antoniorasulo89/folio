@@ -501,13 +501,16 @@ class App(ctk.CTk):
                 except tk.TclError:
                     pass
 
-        for seq in ("<Control-v>", "<Control-V>", "<Command-v>"):
+        # Command is a macOS modifier. On Windows Tk maps it to a bit also
+        # used by Num Lock, turning ordinary letters into editing shortcuts.
+        command = self.tk.call("tk", "windowingsystem") == "aqua"
+        for seq in ("<Control-v>", "<Control-V>") + (("<Command-v>",) if command else ()):
             self.bind_class(self._edit_tag, seq, on_paste_key)
-        for seq in ("<Control-c>", "<Control-C>", "<Command-c>"):
+        for seq in ("<Control-c>", "<Control-C>") + (("<Command-c>",) if command else ()):
             self.bind_class(self._edit_tag, seq, on_copycut_key("copy"))
-        for seq in ("<Control-x>", "<Control-X>", "<Command-x>"):
+        for seq in ("<Control-x>", "<Control-X>") + (("<Command-x>",) if command else ()):
             self.bind_class(self._edit_tag, seq, on_copycut_key("cut"))
-        for seq in ("<Control-a>", "<Control-A>", "<Command-a>"):
+        for seq in ("<Control-a>", "<Control-A>") + (("<Command-a>",) if command else ()):
             self.bind_class(self._edit_tag, seq, on_all_key)
         self.bind_class(self._edit_tag, "<<Paste>>", on_paste_key)
         self.bind_class(self._edit_tag, "<<Copy>>", on_copycut_key("copy"))

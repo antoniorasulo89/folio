@@ -30,7 +30,7 @@ else:shutil.copy2(binary,temporary/binary.name)
 for name in ['README.md','THIRD_PARTY_NOTICES.md','requirements.txt','requirements-build.txt','version.py']:
     shutil.copy2(root/name,temporary/name)
 shutil.copytree(root/'THIRD_PARTY_LICENSES',temporary/'THIRD_PARTY_LICENSES',dirs_exist_ok=True)
-(temporary/'LEGGIMI.txt').write_text(f'Folio 3.1.0.dev1 — {args.target}\n\nPacchetto nativo compilato su GitHub Actions.\nArchitettura: {platform.machine()}. Sistema runner: {platform.platform()}.\nEstrarre tutto lo ZIP e aprire '+('Folio.app' if args.target=='macOS' else binary.name)+'.\nI test offline e la prova GUI del bundle sono stati eseguiti prima del confezionamento.\nNon contiene account, password o libri scaricati.\nBuild di sviluppo; non firmata né notarizzata.\n',encoding='utf-8')
+(temporary/'LEGGIMI.txt').write_text(f'Folio 3.1.0.dev2 — {args.target}\n\nPacchetto nativo compilato su GitHub Actions.\nArchitettura: {platform.machine()}. Sistema runner: {platform.platform()}.\nEstrarre tutto lo ZIP e aprire '+('Folio.app' if args.target=='macOS' else binary.name)+'.\nI test offline e la prova GUI del bundle sono stati eseguiti prima del confezionamento.\nNon contiene account, password o libri scaricati.\nBuild di sviluppo; non firmata né notarizzata.\n',encoding='utf-8')
 manifest=[]
 for file in sorted(temporary.rglob('*')):
     if file.is_file():manifest.append(hashlib.sha256(file.read_bytes()).hexdigest()+'  '+file.relative_to(temporary).as_posix())

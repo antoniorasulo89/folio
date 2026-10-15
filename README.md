@@ -15,17 +15,17 @@ Porting Python dei downloader di [Leone25](https://github.com/Leone25).
 
 ## Scarica Folio
 
-[Folio 3.1.0.dev1](https://github.com/antoniorasulo89/folio/releases/tag/v3.1.0-dev.1) è la versione con la nuova interfaccia e le correzioni dell’audit. I pacchetti contengono l’applicazione nativa: non serve installare Python.
+[Folio 3.1.0.dev2](https://github.com/antoniorasulo89/folio/releases/tag/v3.1.0-dev.2) corregge l’inserimento delle lettere **a, c, v e x** nei campi su Windows con **Bloc Num attivo**. Le scorciatoie Command vengono registrate solo su macOS. I pacchetti contengono l’applicazione nativa: non serve installare Python.
 
 | Sistema | Download | Architettura |
 |---|---|---|
-| Windows | **[Folio-Windows.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.1/Folio-Windows.zip)** | x86_64 |
-| macOS | **[Folio-macOS.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.1/Folio-macOS.zip)** | Apple Silicon / ARM64 |
-| Linux | **[Folio-Linux.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.1/Folio-Linux.zip)** | x86_64 |
+| Windows | **[Folio-Windows.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.2/Folio-Windows.zip)** | x86_64 |
+| macOS | **[Folio-macOS.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.2/Folio-macOS.zip)** | Apple Silicon / ARM64 |
+| Linux | **[Folio-Linux.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.2/Folio-Linux.zip)** | x86_64 |
 
 Estrai tutto lo ZIP e apri `Folio.exe` su Windows, `Folio.app` su macOS o `Folio` su Linux. Su Linux, se necessario: `chmod +x Folio`.
 
-I pacchetti sono compilati con GitHub Actions e hanno superato 48 test offline e la prova di avvio della GUI su ciascun sistema. La build macOS è per Apple Silicon. Gli eseguibili di sviluppo non sono firmati; l’app macOS non è notarizzata.
+I pacchetti sono compilati con GitHub Actions e hanno superato 49 controlli offline e la prova di avvio della GUI su ciascun sistema. La build macOS è per Apple Silicon. Gli eseguibili di sviluppo non sono firmati; l’app macOS non è notarizzata.
 
 Questa versione precede gli esperimenti OCR: non include riconoscimento del testo, account salvati o libri scaricati.
 
@@ -82,7 +82,11 @@ Le prossime build usano il nome **Folio** (`Folio-Windows.exe`, `Folio-Linux`, `
 **Biblioteca** mostra i PDF scaricati che esistono ancora sul dispositivo, indipendentemente dall’account attivo. L’indice sopravvive ai riavvii e viene controllato aprendo la pagina, tornando all’app o premendo **Aggiorna**. I nuovi PDF nella cartella di destinazione vengono riconosciuti; per altri file già scaricati usa **Aggiungi PDF**. Un file spostato o eliminato scompare dalla lista; può essere aggiunto dalla nuova posizione. Ogni titolo offre **Apri PDF** e **Cartella**. **Nuovi download** contiene invece i titoli disponibili sulla piattaforma.
 
 
-## Affidabilità e sicurezza (3.1.0.dev1)
+## Correzione tastiera (3.1.0.dev2)
+
+Su Windows, il modificatore Tk `Command` collideva con il bit usato da Bloc Num: premere `a` selezionava tutto, `v` incollava e `c`/`x` potevano attivare copia/taglia. La correzione limita Command a macOS; le scorciatoie Ctrl e il menu contestuale restano disponibili. La regressione verifica minuscole e maiuscole nei campi email e password, con e senza Bloc Num.
+
+## Affidabilità e sicurezza
 
 - Nuovi account: conservazione soltanto con scelta esplicita. Account già conservati: checkbox coerente con il portachiavi. Errori di lettura/cifratura non cancellano l’archivio precedente; scritture atomiche e aggiornamenti protetti tra istanze.
 - Windows DPAPI, macOS Keychain aggiornato senza cancellazione preventiva, Linux Secret Service. Il vecchio archivio Linux in chiaro viene segnalato nella pagina Account e può essere rimosso con un’azione esplicita; non viene riscritto in chiaro.
@@ -93,4 +97,4 @@ Le prossime build usano il nome **Folio** (`Folio-Windows.exe`, `Folio-Linux`, `
 - digibook24 usa il cookie dell’accesso editore nel browser; le sue password non vengono inviate al login bSmart.
 - Dipendenze con versioni fissate e build isolata. `requirements-build.txt` include gli strumenti di compilazione e controllo. La CI esegue test e prova del bundle prima dell’upload; i pacchetti Windows, Linux e macOS sono stati compilati e verificati sui rispettivi runner.
 
-La versione 3.1.0.dev1 è pubblicata come prerelease: i download sono disponibili in cima a questa pagina.
+La versione 3.1.0.dev2 è pubblicata come prerelease: i download sono disponibili in cima a questa pagina.

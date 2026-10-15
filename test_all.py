@@ -524,6 +524,35 @@ def t_real_paste():
             app.destroy()
 
 
+def t_numlock_typing():
+    import app_gui
+    with patch("vault.get_creds", return_value={}):
+        app = app_gui.App()
+        try:
+            if app.tk.call("tk", "windowingsystem") != "win32":
+                return
+            app.pages.set("Account e credenziali")
+            app.update()
+            app.clipboard_clear()
+            app.clipboard_append("must-not-paste")
+            for field in ("email", "password"):
+                entry = app.auth_widgets[field]._entry
+                entry.focus_force()
+                app.update()
+                for state in (0, 8):
+                    entry.delete(0, "end")
+                    for letter in "acvxACVX":
+                        entry.event_generate("<KeyPress>", keysym=letter,
+                                             state=state | (1 if letter.isupper() else 0))
+                    app.update()
+                    assert entry.get() == "acvxACVX", (field, state, repr(entry.get()))
+        finally:
+            app.destroy()
+
+
+check("Windows: lettere a/c/v/x con e senza Num Lock", t_numlock_typing)
+
+
 def wait_library(app):
     import time
     deadline = time.monotonic() + 5
