@@ -14,6 +14,8 @@ parser=argparse.ArgumentParser()
 parser.add_argument('target', choices=['Windows','macOS','Linux'])
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(root))
+from version import VERSION
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean','--name','Folio','--collect-all','customtkinter',
     *(['--windowed'] if args.target=='macOS' else ['--onefile','--windowed']),
     *(['--icon','assets/folio.ico','--version-file','assets/folio-version.txt'] if args.target=='Windows' else []),
@@ -30,7 +32,7 @@ else:shutil.copy2(binary,temporary/binary.name)
 for name in ['README.md','THIRD_PARTY_NOTICES.md','requirements.txt','requirements-build.txt','version.py']:
     shutil.copy2(root/name,temporary/name)
 shutil.copytree(root/'THIRD_PARTY_LICENSES',temporary/'THIRD_PARTY_LICENSES',dirs_exist_ok=True)
-(temporary/'LEGGIMI.txt').write_text(f'Folio 3.1.0.dev5 — {args.target}\n\nPacchetto nativo compilato su GitHub Actions.\nArchitettura: {platform.machine()}. Sistema runner: {platform.platform()}.\nEstrarre tutto lo ZIP e aprire '+('Folio.app' if args.target=='macOS' else binary.name)+'.\nI test offline e la prova GUI del bundle sono stati eseguiti prima del confezionamento.\nNon contiene account, password o libri scaricati.\nBuild di sviluppo; non firmata né notarizzata.\n',encoding='utf-8')
+(temporary/'LEGGIMI.txt').write_text(f'Folio {VERSION} — {args.target}\n\nPacchetto nativo compilato su GitHub Actions.\nArchitettura: {platform.machine()}. Sistema runner: {platform.platform()}.\nEstrarre tutto lo ZIP e aprire '+('Folio.app' if args.target=='macOS' else binary.name)+'.\nI test offline e la prova GUI del bundle sono stati eseguiti prima del confezionamento.\nNon contiene account, password o libri scaricati.\nBuild di sviluppo; non firmata né notarizzata.\n',encoding='utf-8')
 manifest=[]
 for file in sorted(temporary.rglob('*')):
     if file.is_file():manifest.append(hashlib.sha256(file.read_bytes()).hexdigest()+'  '+file.relative_to(temporary).as_posix())
@@ -49,3 +51,5 @@ with zipfile.ZipFile(archive) as z:assert z.testzip() is None
 checksum=hashlib.sha256(archive.read_bytes()).hexdigest()
 archive.with_suffix('.zip.sha256').write_text(checksum+'  '+archive.name+'\n',encoding='utf-8')
 print('Pacchetto verificato:',archive.name,platform.machine())
+
+subprocess.run([sys.executable, str(root/"scripts/package_installers.py"), args.target], cwd=root, check=True)

@@ -15,17 +15,26 @@ Porting Python dei downloader di [Leone25](https://github.com/Leone25).
 
 ## Scarica Folio
 
-[Folio 3.1.0.dev2](https://github.com/antoniorasulo89/folio/releases/tag/v3.1.0-dev.2) corregge l’inserimento delle lettere **a, c, v e x** nei campi su Windows con **Bloc Num attivo**. Le scorciatoie Command vengono registrate solo su macOS. I pacchetti contengono l’applicazione nativa: non serve installare Python.
+[Folio 3.1.0.dev5](https://github.com/antoniorasulo89/folio/releases/tag/v3.1.0-dev.5) corregge il catalogo Sanoma e permette di scaricare i suoi archivi grandi direttamente su disco. Verificato su un archivio reale da circa 3 GB, convertito in un PDF di 434 pagine. Include anche la precedente correzione della tastiera Windows con Bloc Num attivo.
 
-| Sistema | Download | Architettura |
-|---|---|---|
-| Windows | **[Folio-Windows.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.2/Folio-Windows.zip)** | x86_64 |
-| macOS | **[Folio-macOS.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.2/Folio-macOS.zip)** | Apple Silicon / ARM64 |
-| Linux | **[Folio-Linux.zip](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.2/Folio-Linux.zip)** | x86_64 |
+| Sistema | Installa o aggiorna | Versione portabile | Architettura |
+|---|---|---|---|
+| Windows | **[Scarica installer .exe](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.5/Folio-Windows-Setup.exe)** | [ZIP](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.5/Folio-Windows.zip) | x86_64 |
+| macOS | **[Scarica .dmg](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.5/Folio-macOS.dmg)** | [ZIP](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.5/Folio-macOS.zip) | Apple Silicon / ARM64 |
+| Linux Debian/Ubuntu | **[Scarica .deb](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.5/Folio-Linux-amd64.deb)** | [ZIP](https://github.com/antoniorasulo89/folio/releases/download/v3.1.0-dev.5/Folio-Linux.zip) | x86_64, glibc ≥ 2.39 |
 
-Estrai tutto lo ZIP e apri `Folio.exe` su Windows, `Folio.app` su macOS o `Folio` su Linux. Su Linux, se necessario: `chmod +x Folio`.
+Non serve installare Python. Gli eseguibili di sviluppo non sono firmati; l’app macOS non è notarizzata. Il pacchetto Linux è compilato su Ubuntu 24.04.
 
-I pacchetti sono compilati con GitHub Actions e hanno superato 49 controlli offline e la prova di avvio della GUI su ciascun sistema. La build macOS è per Apple Silicon. Gli eseguibili di sviluppo non sono firmati; l’app macOS non è notarizzata.
+### Installazione e aggiornamento
+
+- **Windows:** chiudi Folio ed esegui l’installer. Installa nel profilo utente e crea il collegamento nel menu Start; lo stesso installer aggiorna l’installazione precedente. Se usavi lo ZIP, passa all’installer e avvia Folio dal menu Start.
+- **macOS:** apri il DMG e trascina `Folio.app` in `Applications`. Per aggiornare, chiudi Folio e sostituisci l’app precedente.
+- **Linux Debian/Ubuntu:** dalla cartella del download esegui `sudo apt install ./Folio-Linux-amd64.deb`. Lo stesso comando aggiorna una versione già installata.
+- **ZIP portabili:** estrai tutto lo ZIP in una cartella nuova e apri `Folio.exe`, `Folio.app` oppure `Folio`. Su Linux, se necessario: `chmod +x Folio`.
+
+L’aggiornamento sostituisce l’applicazione; credenziali conservate nel portachiavi, indice della biblioteca e PDF scaricati restano nelle rispettive cartelle utente. Non è presente un aggiornamento automatico: per le versioni successive scarica ed esegui il nuovo pacchetto.
+
+I pacchetti vengono compilati con GitHub Actions, con 60 controlli offline, prova di avvio GUI e verifica del contenuto installato. Su Windows viene provata anche la reinstallazione sullo stesso percorso. I checksum `.sha256` sono disponibili tra i file della release.
 
 Questa versione precede gli esperimenti OCR: non include riconoscimento del testo, account salvati o libri scaricati.
 
@@ -82,7 +91,7 @@ Le prossime build usano il nome **Folio** (`Folio-Windows.exe`, `Folio-Linux`, `
 **Biblioteca** mostra i PDF scaricati che esistono ancora sul dispositivo, indipendentemente dall’account attivo. L’indice sopravvive ai riavvii e viene controllato aprendo la pagina, tornando all’app o premendo **Aggiorna**. I nuovi PDF nella cartella di destinazione vengono riconosciuti; per altri file già scaricati usa **Aggiungi PDF**. Un file spostato o eliminato scompare dalla lista; può essere aggiunto dalla nuova posizione. Ogni titolo offre **Apri PDF** e **Cartella**. **Nuovi download** contiene invece i titoli disponibili sulla piattaforma.
 
 
-## Correzione tastiera (3.1.0.dev2)
+## Correzione tastiera (3.1.0.dev5)
 
 Su Windows, il modificatore Tk `Command` collideva con il bit usato da Bloc Num: premere `a` selezionava tutto, `v` incollava e `c`/`x` potevano attivare copia/taglia. La correzione limita Command a macOS; le scorciatoie Ctrl e il menu contestuale restano disponibili. La regressione verifica minuscole e maiuscole nei campi email e password, con e senza Bloc Num.
 
@@ -97,4 +106,8 @@ Su Windows, il modificatore Tk `Command` collideva con il bit usato da Bloc Num:
 - digibook24 usa il cookie dell’accesso editore nel browser; le sue password non vengono inviate al login bSmart.
 - Dipendenze con versioni fissate e build isolata. `requirements-build.txt` include gli strumenti di compilazione e controllo. La CI esegue test e prova del bundle prima dell’upload; i pacchetti Windows, Linux e macOS sono stati compilati e verificati sui rispettivi runner.
 
-La versione 3.1.0.dev2 è pubblicata come prerelease: i download sono disponibili in cima a questa pagina.
+La versione 3.1.0.dev5 è pubblicata come prerelease: i download sono disponibili in cima a questa pagina.
+
+## Correzioni Sanoma (3.1.0.dev5)
+
+Il catalogo viene letto dopo la sincronizzazione dei prodotti; i formati di risposta dei due endpoint vengono gestiti separatamente. Gli ZIP sono scaricati a blocchi su disco, con avanzamento in MB, annullamento e pubblicazione solo dopo un trasferimento completo. Limiti dedicati: 4 GiB per archivio trasferito e 8 GiB complessivi per i contenuti ZIP; restano i controlli su percorsi, collegamenti e singoli file. Le altre risposte HTTP mantengono il limite di 512 MiB. La conversione è SVG → PDF, senza OCR.

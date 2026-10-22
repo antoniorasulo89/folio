@@ -14,7 +14,7 @@ jobs:
         include:
           - os: windows-latest
             platform: Windows
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: Linux
           - os: macos-latest
             platform: macOS
@@ -43,6 +43,12 @@ jobs:
         run: |
           python test_all.py
           python test_security.py
+      - name: Ensure Windows installer compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $compiler = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup *\ISCC.exe" -ErrorAction SilentlyContinue
+          if (-not $compiler) { choco install innosetup --yes --no-progress }
       - name: Compile, smoke test and package
         run: python scripts/package_ci.py ${{ matrix.platform }}
       - name: Upload native ZIP
@@ -50,7 +56,10 @@ jobs:
         with:
           name: Folio-${{ matrix.platform }}
           path: |
-            packages/Folio-${{ matrix.platform }}.zip
-            packages/Folio-${{ matrix.platform }}.zip.sha256
+            packages/*.zip
+            packages/*.exe
+            packages/*.dmg
+            packages/*.deb
+            packages/*.sha256
           if-no-files-found: error
           retention-days: 14
