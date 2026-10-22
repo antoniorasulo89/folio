@@ -7,14 +7,14 @@ PyMuPDF/MuPDF è disponibile sotto AGPL oppure licenza commerciale Artifex: http
 | Componente | Versione | Licenza dichiarata nel pacchetto |
 |---|---|---|
 | requests | 2.34.2 | Apache-2.0 |
-| pypdf | 6.19.0 | BSD-3-Clause |
+| pypdf | 6.21.1 | BSD-3-Clause |
 | pymupdf | 1.28.2 | Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License |
 | msgpack | 1.2.3 | Apache-2.0 |
 | pycryptodome | 3.23.0 | BSD, Public Domain |
 | customtkinter | 6.0.0 | Creative Commons Zero v1.0 Universal |
 | filelock | 4.0.6 | MIT |
 | urllib3 | 2.8.0 | MIT |
-| certifi | 2026.7.22 | MPL-2.0 |
+| certifi | 2026.10.19 | MPL-2.0 |
 | charset-normalizer | 3.5.1 | MIT |
 | idna | 3.20 | BSD-3-Clause |
 | darkdetect | 0.8.0 | BSD-3-Clause |
