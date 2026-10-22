@@ -90,7 +90,7 @@ def save_pdf(document, folder, name):
             os.unlink(temporary)
 
 
-def checked_zip(archive):
+def checked_zip(archive, *, max_total_size=2 * 1024**3):
     from pathlib import PurePosixPath
     total = 0
     if len(archive.infolist()) > 20000:
@@ -101,7 +101,7 @@ def checked_zip(archive):
         total += item.file_size
         if (name.startswith('/') or '..' in parts or ':' in name
                 or (item.external_attr >> 16) & 0o170000 == 0o120000
-                or item.file_size > 512 * 1024**2 or total > 2 * 1024**3):
+                or item.file_size > 512 * 1024**2 or total > max_total_size):
             raise RuntimeError('Archivio non sicuro o troppo grande. Estrazione annullata.')
     return archive
 

@@ -267,6 +267,28 @@ def t_sanoma_sync_body_not_login_schema():
                 assert sanoma.list_books({"token": "synthetic"})[0]["id"] == "1"
 
 
+def t_sanoma_download_stream_to_pdf():
+    package = io.BytesIO()
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="red"/></svg>'
+    with zipfile.ZipFile(package, 'w') as archive:
+        archive.writestr('book/pages/1/1.svg', svg)
+        archive.writestr('book/pages/2/2.svg', svg)
+    def transfer(url, path, **kwargs):
+        assert url == 'https://example.test/book.zip'
+        assert kwargs['headers']['X-Auth-Token'] == 'Bearer synthetic'
+        with open(path, 'wb') as file:
+            file.write(package.getvalue())
+        kwargs['progress'](len(package.getvalue()), len(package.getvalue()))
+    state = {'token': 'synthetic', 'by_id': {'1': {'title': 'Libro sintetico', 'url_download': 'https://example.test/book.zip'}}}
+    messages = []
+    with tempfile.TemporaryDirectory() as folder, patch.object(sanoma.requests, 'download_file', side_effect=transfer) as download:
+        path = sanoma.download(state, '1', folder, {}, lambda *args: messages.append(args))
+        with fitz.open(path) as doc:
+            assert len(doc) == 2
+        assert download.call_count == 1
+    assert any('Scarico ZIP:' in args[2] for args in messages)
+
+
 def t_sanoma_empty_catalog():
     state = {"token": "synthetic"}
     with patch.object(sanoma.requests, "get", side_effect=[FakeResp(payload={"code": 0}), FakeResp(payload={"code": 0, "result": {"data": []}})]):
@@ -278,6 +300,7 @@ check("Sanoma: sincronizza prodotti prima del catalogo", t_sanoma_catalog_sync)
 check("Sanoma: errore sincronizzazione non diventa biblioteca vuota", t_sanoma_sync_error)
 check("Sanoma: risposte catalogo invalide conservano la cache", t_sanoma_catalog_invalid)
 check("Sanoma: biblioteca realmente vuota accettata", t_sanoma_empty_catalog)
+check("Sanoma: ZIP su disco convertito in PDF completo", t_sanoma_download_stream_to_pdf)
 check("Sanoma: sincronizzazione senza formato login e catalogo HTTP 200", t_sanoma_sync_body_not_login_schema)
 
 

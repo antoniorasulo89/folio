@@ -196,6 +196,148 @@ class SecurityTests(unittest.TestCase):
         with scope(Operation(event)):
             with self.assertRaises(Cancelled): save_pdf(pdf(),self.root,'cancelled')
         self.assertFalse(list(self.root.glob('*.pdf')))
+    def test_large_archive_streams_without_response_buffer(self):
+        from platforms import network
+        from unittest.mock import Mock
+        class CounterFile:
+            size = 0
+            largest_write = 0
+            def seek(self, offset):
+                self.size = offset
+            def truncate(self):
+                self.size = 0
+            def write(self, chunk):
+                self.size += len(chunk)
+                self.largest_write = max(self.largest_write, len(chunk))
+        chunk = b'x' * 65536
+        count = 8193  # More than the former 512 MiB limit; only one chunk is allocated.
+        response = requests.Response()
+        response.status_code = 200
+        response.headers['Content-Length'] = str(len(chunk) * count)
+        response.iter_content = lambda size: (chunk for _ in range(count))
+        response.close = Mock()
+        adapter = Mock()
+        adapter.send.return_value = response
+        file = CounterFile()
+        with network.Session() as session, patch.object(session, 'get_adapter', return_value=adapter):
+            session._file_sink = network._FileSink(file, 1024**3, None)
+            result = session.get('https://example.test/large.zip')
+        self.assertEqual(file.size, len(chunk) * count)
+        self.assertLessEqual(file.largest_write, 65536)
+        self.assertEqual(result.content, b'')
+        response.close.assert_called_once()
+
+    def test_archive_file_is_atomic_on_failure_and_cancel(self):
+        from platforms import network
+        from unittest.mock import Mock
+        def response(status=200, chunks=(b'archive',), length=None):
+            r = requests.Response()
+            r.status_code = status
+            if length is not None:
+                r.headers['Content-Length'] = str(length)
+            r.iter_content = lambda size: iter(chunks)
+            r.close = Mock()
+            return r
+        destination = self.root / 'book.zip'
+        destination.write_bytes(b'previous')
+        for incoming in [response(status=403), response(chunks=(b'partial',), length=8),
+                         response(chunks=(b'too large',))]:
+            adapter = Mock()
+            adapter.send.return_value = incoming
+            with patch.object(network.Session, 'get_adapter', return_value=adapter):
+                with self.assertRaises(RuntimeError):
+                    network.download_file('https://example.test/book.zip', destination, max_bytes=8)
+            self.assertEqual(destination.read_bytes(), b'previous')
+            self.assertFalse(list(self.root.glob('*.part')))
+        event = threading.Event()
+        def cancelled_chunks():
+            yield b'first'
+            event.set()
+            yield b'second'
+        incoming = response()
+        incoming.iter_content = lambda size: cancelled_chunks()
+        adapter = Mock()
+        adapter.send.return_value = incoming
+        operation = Operation(event)
+        with scope(operation), patch.object(network.Session, 'get_adapter', return_value=adapter):
+            with self.assertRaises(Cancelled):
+                network.download_file('https://example.test/book.zip', destination)
+        self.assertEqual(operation.byte_limit, 2 * 1024**3)
+        self.assertEqual(destination.read_bytes(), b'previous')
+        self.assertFalse(list(self.root.glob('*.part')))
+
+    def test_archive_stream_restarts_partial_retry(self):
+        from platforms import network
+        from unittest.mock import Mock
+        first = requests.Response()
+        first.status_code = 200
+        def partial():
+            yield b'partial'
+            raise requests.ConnectionError('synthetic')
+        first.iter_content = lambda size: partial()
+        first.close = Mock()
+        second = requests.Response()
+        second.status_code = 200
+        second.headers['Content-Length'] = '4'
+        second.iter_content = lambda size: iter((b'done',))
+        second.close = Mock()
+        adapter = Mock()
+        adapter.send.side_effect = [first, second]
+        destination = self.root / 'book.zip'
+        with patch.object(network.Session, 'get_adapter', return_value=adapter), patch.object(network.time, 'sleep'):
+            network.download_file('https://example.test/book.zip', destination)
+        self.assertEqual(destination.read_bytes(), b'done')
+        self.assertEqual(adapter.send.call_count, 2)
+        self.assertFalse(list(self.root.glob('*.part')))
+
+    def test_archive_redirect_does_not_forward_credentials(self):
+        from platforms import network
+        from unittest.mock import Mock
+        from types import SimpleNamespace
+        redirect = requests.Response()
+        redirect.status_code = 302
+        redirect.headers['Location'] = 'https://cdn.example.test/book.zip'
+        redirect.iter_content = lambda size: iter(())
+        redirect.raw = SimpleNamespace(_original_response=None, release_conn=Mock())
+        redirect.close = Mock()
+        final = requests.Response()
+        final.status_code = 200
+        final.headers['Content-Length'] = '3'
+        final.iter_content = lambda size: iter((b'zip',))
+        final.close = Mock()
+        sent = []
+        def send(prepared, **kwargs):
+            sent.append(prepared)
+            response = redirect if len(sent) == 1 else final
+            response.request = prepared
+            response.url = prepared.url
+            return response
+        adapter = Mock()
+        adapter.send.side_effect = send
+        destination = self.root / 'book.zip'
+        with patch.object(network.Session, 'get_adapter', return_value=adapter):
+            network.download_file('https://api.example.test/book', destination,
+                                  headers={'X-Auth-Token': 'synthetic', 'Authorization': 'synthetic', 'Cookie': 'synthetic'})
+        self.assertEqual(destination.read_bytes(), b'zip')
+        self.assertEqual(len(sent), 2)
+        self.assertNotIn('X-Auth-Token', sent[1].headers)
+        self.assertNotIn('Authorization', sent[1].headers)
+        self.assertNotIn('Cookie', sent[1].headers)
+
+    def test_sanoma_zip_budget_keeps_path_validation(self):
+        from unittest.mock import Mock
+        entries = []
+        for i in range(8):
+            entry = zipfile.ZipInfo(f'pages/{i}/{i}.svg')
+            entry.file_size = 400 * 1024**2
+            entries.append(entry)
+        archive = Mock()
+        archive.infolist.return_value = entries
+        with self.assertRaises(RuntimeError): checked_zip(archive)
+        self.assertIs(checked_zip(archive, max_total_size=8 * 1024**3), archive)
+        entries[0].filename = '../unsafe.svg'
+        with self.assertRaises(RuntimeError): checked_zip(archive, max_total_size=8 * 1024**3)
+
     def test_operation_limits(self):
         operation=Operation(threading.Event());operation.deadline=0
         with self.assertRaises(RuntimeError): operation.check()

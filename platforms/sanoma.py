@@ -105,17 +105,19 @@ def download(state, book_id, out_dir, options, progress):
     tmp = tempfile.mkdtemp(prefix="sanoma_")
     try:
         progress(0, 1, f"Scarico '{title}'…")
-        z = requests.get(book["url_download"], headers=_auth(state), timeout=300)
-        if not z.ok:
-            raise RuntimeError("Download dello ZIP non riuscito.")
         zpath = os.path.join(tmp, "book.zip")
-        with open(zpath, "wb") as fh:
-            fh.write(z.content)
+        def transfer_progress(done, total):
+            amount = f"{done / 1024**2:.1f} MB"
+            if total:
+                amount += f" / {total / 1024**2:.1f} MB"
+            progress(done, total, f"Scarico ZIP: {amount}")
+        requests.download_file(book["url_download"], zpath,
+                               headers=_auth(state), progress=transfer_progress)
 
         progress(0, 1, "Estraggo le pagine…")
         pages_dir = os.path.join(tmp, "pages")
         with zipfile.ZipFile(zpath) as zh:
-            checked_zip(zh)
+            checked_zip(zh, max_total_size=8 * 1024**3)
             for name in zh.namelist():
                 m = re.search(r"(?:^|/)pages/(.+)$", name)
                 if not m or name.endswith("/"):
@@ -123,7 +125,9 @@ def download(state, book_id, out_dir, options, progress):
                 dest = os.path.join(pages_dir, m.group(1))
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with zh.open(name) as src, open(dest, "wb") as fh:
-                    fh.write(src.read())
+                    while chunk := src.read(1024 * 1024):
+                        requests.check()
+                        fh.write(chunk)
 
         folders = sorted(
             (d for d in os.listdir(pages_dir)
@@ -135,6 +139,7 @@ def download(state, book_id, out_dir, options, progress):
 
         doc = fitz.open()
         for i, n in enumerate(folders):
+            requests.check()
             progress(i, len(folders), f"Converto pagina {i + 1}/{len(folders)}…")
             svg_path = os.path.join(pages_dir, n, f"{n}.svg")
             if not os.path.exists(svg_path):

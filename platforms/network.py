@@ -15,6 +15,7 @@ class Operation:
         self.event = event
         self.deadline = time.monotonic() + 15 * 60
         self.bytes = 0
+        self.byte_limit = 2 * 1024**3
         self.lock = threading.Lock()
     def check(self):
         if self.event.is_set():
@@ -24,7 +25,7 @@ class Operation:
     def consume(self, count):
         with self.lock:
             self.bytes += count
-            if self.bytes > 2 * 1024**3:
+            if self.bytes > self.byte_limit:
                 raise RuntimeError("Download troppo grande: limite di sicurezza superato.")
         self.check()
 
@@ -66,6 +67,15 @@ class Session(_requests.Session):
         response.elapsed = timedelta(seconds=time.monotonic() - started)
         response = dispatch_hook('response', request.hooks, response, **kwargs)
         extract_cookies_to_jar(self.cookies, request, response.raw)
+        file_sink = getattr(self, '_file_sink', None)
+        if file_sink is not None and response.status_code == 200:
+            try:
+                file_sink.receive(response)
+                response._content = b''
+                response._content_consumed = True
+            finally:
+                response.close()
+            return response
         chunks, size = [], 0
         try:
             for chunk in response.iter_content(65536):
@@ -121,3 +131,73 @@ def post(url, **kwargs):
 
 def __getattr__(name):
     return getattr(_requests, name)
+
+
+class _FileSink:
+    def __init__(self, file, max_bytes, progress):
+        self.file, self.max_bytes, self.progress = file, max_bytes, progress
+        self.size = 0
+
+    def receive(self, response):
+        # A retried GET starts from zero; partial attempts still count toward the budget.
+        self.file.seek(0)
+        self.file.truncate()
+        self.size = 0
+        value = response.headers.get('Content-Length', '')
+        total = int(value) if value.isdigit() else 0
+        if total > self.max_bytes:
+            raise RuntimeError(f'Archivio troppo grande: {total // 1024**2} MB, limite {self.max_bytes // 1024**2} MB.')
+        last_progress = 0.0
+        for chunk in response.iter_content(65536):
+            check()
+            if not chunk:
+                continue
+            self.size += len(chunk)
+            if self.size > self.max_bytes:
+                raise RuntimeError('Archivio troppo grande: limite di download superato.')
+            if current():
+                current().consume(len(chunk))
+            self.file.write(chunk)
+            now = time.monotonic()
+            if self.progress and now - last_progress >= 0.2:
+                self.progress(self.size, total)
+                last_progress = now
+        if total and not response.headers.get('Content-Encoding') and self.size != total:
+            raise RuntimeError('Archivio incompleto: dimensione scaricata diversa da quella prevista.')
+        if self.progress:
+            self.progress(self.size, total)
+
+
+def download_file(url, path, *, headers=None, progress=None, max_bytes=4 * 1024**3):
+    """Stream a bounded archive to disk; publish only a complete successful response."""
+    import os
+    from pathlib import Path
+    import tempfile
+    destination = Path(path)
+    temporary = None
+    operation = current()
+    old_limit = operation.byte_limit if operation else None
+    try:
+        if operation:
+            # Up to two full transfer attempts, still bounded across redirects/retries.
+            operation.byte_limit = max(old_limit, 2 * max_bytes)
+        with tempfile.NamedTemporaryFile(dir=destination.parent, suffix='.part', delete=False) as file:
+            temporary = Path(file.name)
+            with Session() as session:
+                sink = _FileSink(file, max_bytes, progress)
+                session._file_sink = sink
+                response = session.get(url, headers=headers)
+                if response.status_code != 200:
+                    raise RuntimeError(f'Download archivio non riuscito (HTTP {response.status_code}).')
+                if not sink.size:
+                    raise RuntimeError('Il server ha restituito un archivio vuoto.')
+            file.flush()
+            os.fsync(file.fileno())
+        check()
+        os.replace(temporary, destination)
+        return str(destination)
+    finally:
+        if operation:
+            operation.byte_limit = old_limit
+        if temporary and temporary.exists():
+            temporary.unlink()
