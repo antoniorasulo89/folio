@@ -50,15 +50,45 @@ def _auth(state):
     return {**UA_SIMPLE, "X-Auth-Token": "Bearer " + state["token"]}
 
 
+def _catalog_request(state, resource, *, synchronization=False):
+    label = "sincronizzazione prodotti" if synchronization else "elenco libri"
+    response = requests.get(f"{API}/{resource}", headers=_auth(state), timeout=30)
+    status = response.status_code
+    if status >= 400:
+        raise RuntimeError(f"Sanoma: {label} non riuscito (HTTP {status}).")
+    # The synchronization endpoint's body is not part of the book-list contract.
+    if synchronization:
+        return None
+    payload = response_json(response)
+    code = payload.get("code") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict) or code not in (None, 0, "0", 200, "200"):
+        safe_code = str(code) if isinstance(code, (int, str)) and re.fullmatch(r"-?[0-9]{1,8}", str(code)) else "non previsto"
+        raise RuntimeError(f"Sanoma: {label} rifiutato (HTTP {status}, codice {safe_code}).")
+    return payload
+
+
 def list_books(state):
-    r = response_json(requests.get(f"{API}/books?app=true", headers=_auth(state), timeout=20))
-    books = []
-    for b in (r.get("result") or {}).get("data", []):
-        books.append({"id": str(b.get("gedi", "")), "title": b.get("name", "?"),
-                      "url_download": b.get("url_download")})
-    # salva url per il download senza rifare la lista
-    state["by_id"] = {b["id"]: b for b in books}
-    return [{"id": b["id"], "title": b["title"]} for b in books if b["id"]]
+    # /products synchronizes the account's entitlements before /books reads them.
+    # The original downloader performs this request even though it ignores its data.
+    _catalog_request(state, "products", synchronization=True)
+    payload = _catalog_request(state, "books?app=true")
+    result = payload.get("result")
+    if not isinstance(result, dict) or not isinstance(result.get("data"), list):
+        raise RuntimeError("Risposta del catalogo Sanoma inattesa. Nessuna biblioteca aggiornata.")
+    rows = result["data"]
+    books = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("gedi") is None:
+            raise RuntimeError("Catalogo Sanoma con un libro senza identificativo valido.")
+        gid = str(row["gedi"]).strip()
+        if not gid:
+            raise RuntimeError("Catalogo Sanoma con un libro senza identificativo valido.")
+        books[gid] = {"id": gid, "title": row.get("name") or "Libro senza titolo",
+                      "url_download": row.get("url_download")}
+    # Do not replace a previously loaded catalogue until synchronization and parsing succeed.
+    state["by_id"] = books
+    state["_debug"] = [f"Sanoma: prodotti sincronizzati; {len(books)} titoli nel catalogo."]
+    return [{"id": b["id"], "title": b["title"]} for b in books.values()]
 
 
 def download(state, book_id, out_dir, options, progress):

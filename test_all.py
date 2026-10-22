@@ -210,6 +210,77 @@ class FakeResp:
             raise IOError(f"HTTP {self.status_code}")
 
 
+def t_sanoma_catalog_sync():
+    calls = []
+    synchronized = False
+    def get(url, **kwargs):
+        nonlocal synchronized
+        calls.append(url)
+        assert kwargs["headers"]["X-Auth-Token"] == "Bearer synthetic"
+        if url.endswith("/products"):
+            synchronized = True
+            return FakeResp(payload={"code": 0, "result": {"data": []}})
+        assert url.endswith("/books?app=true")
+        rows = [{"gedi": 42, "name": "Libro di prova", "url_download": "https://example.test/book.zip"}] if synchronized else []
+        return FakeResp(payload={"code": 0, "result": {"data": rows}})
+    state = {"token": "synthetic"}
+    with patch.object(sanoma.requests, "get", side_effect=get):
+        books = sanoma.list_books(state)
+    assert books == [{"id": "42", "title": "Libro di prova"}]
+    assert state["by_id"]["42"]["url_download"].endswith("book.zip")
+    assert calls == [sanoma.API + "/products", sanoma.API + "/books?app=true"]
+
+
+def t_sanoma_sync_error():
+    state = {"token": "synthetic", "by_id": {"previous": {}}}
+    with patch.object(sanoma.requests, "get", return_value=FakeResp(payload={"code": 401, "message": "private server detail"}, status_code=401)) as get:
+        try:
+            sanoma.list_books(state)
+        except RuntimeError as exc:
+            assert "private" not in str(exc)
+        else:
+            raise AssertionError("Errore API scambiato per biblioteca vuota")
+    assert get.call_count == 1 and "previous" in state["by_id"]
+
+
+def t_sanoma_catalog_invalid():
+    for payload in ({"code": 401}, {"code": 0}, {"code": 0, "result": {"data": {}}},
+                    {"code": 0, "result": {"data": [{"gedi": None}]}}):
+        state = {"token": "synthetic", "by_id": {"previous": {}}}
+        with patch.object(sanoma.requests, "get", side_effect=[FakeResp(payload={"code": 0}), FakeResp(payload=payload)]):
+            try:
+                sanoma.list_books(state)
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError("Risposta inattesa accettata")
+        assert "previous" in state["by_id"]
+
+
+def t_sanoma_sync_body_not_login_schema():
+    for products in (FakeResp(payload={"code": 200}), FakeResp(content=b"sync complete")):
+        for code in (None, 0, 200):
+            payload = {"result": {"data": [{"gedi": 1, "name": "Libro di prova"}]}}
+            if code is not None:
+                payload["code"] = code
+            with patch.object(sanoma.requests, "get", side_effect=[products, FakeResp(payload=payload)]):
+                assert sanoma.list_books({"token": "synthetic"})[0]["id"] == "1"
+
+
+def t_sanoma_empty_catalog():
+    state = {"token": "synthetic"}
+    with patch.object(sanoma.requests, "get", side_effect=[FakeResp(payload={"code": 0}), FakeResp(payload={"code": 0, "result": {"data": []}})]):
+        assert sanoma.list_books(state) == []
+    assert state["by_id"] == {}
+
+
+check("Sanoma: sincronizza prodotti prima del catalogo", t_sanoma_catalog_sync)
+check("Sanoma: errore sincronizzazione non diventa biblioteca vuota", t_sanoma_sync_error)
+check("Sanoma: risposte catalogo invalide conservano la cache", t_sanoma_catalog_invalid)
+check("Sanoma: biblioteca realmente vuota accettata", t_sanoma_empty_catalog)
+check("Sanoma: sincronizzazione senza formato login e catalogo HTTP 200", t_sanoma_sync_body_not_login_schema)
+
+
 def t_mylim():
     sommari = [{"opera": {"isbn": "978-1", "nome": "Libro Uno", "autore": "Aut",
                           "copertina": "http://x/y.jpg"}, "tipologia": "b"}]
